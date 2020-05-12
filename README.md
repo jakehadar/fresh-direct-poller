@@ -11,8 +11,6 @@ Suggestions
 ===========
 I recommend using a VPN, and not using your real fresh direct email address with this poller. I created a dummy fresh direct account for this poller using a [Temp Mail](https://temp-mail.org/) address. 
 
-Note: after serious amounts of testing and pattern usage, fresh direct has neither blocked my account nor my VPN address.
-
 Contributing
 ============
 Contributors are welcome :) If you have a stronger vision (than I) for how this could evolve into a production app to serve people during covid lets talk!
