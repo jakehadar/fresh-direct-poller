@@ -1,4 +1,3 @@
-import os
 import sys
 import time
 import json
@@ -11,18 +10,6 @@ from requests import Session
 import messagebird
 
 import logging
-
-# TODO: Refactor these constants into config
-
-# Your Fresh Direct login credentials
-USERNAME = 'ilovegroceries@gmail.com'
-PASSWORD = 'correcthorsebatterystaple'
-
-# Your MessageBird api key
-MESSAGE_BIRD_API_KEY = 'xxxxxxxxxxxxxxxxxxxxxxxxx'
-
-# Phone number to text on grocery availability
-PHONE_NUMBER_TO_TEXT = '+12125555555'
 
 
 def setup_custom_logger(name):
@@ -56,13 +43,16 @@ class Alerter:
         pass  # Implement in subclass.
 
 
-class TextAlerter(Alerter):
-    client = messagebird.Client(MESSAGE_BIRD_API_KEY)
+class MessageBirdAlerter(Alerter):
+    def __init__(self, alert_interval, api_key, phone_number_to_text):
+        super(MessageBirdAlerter, self).__init__(alert_interval)
+        self.client = messagebird.Client(api_key)
+        self.phone_number_to_text = phone_number_to_text
 
     def user_alert(self, message):
         message = self.client.message_create(
             'MessageBird',
-            PHONE_NUMBER_TO_TEXT,
+            self.phone_number_to_text,
             message,
             {'reference': 'Foobar'}
         )
@@ -91,7 +81,19 @@ class FreshDirectClient:
         res2 = self.session.post(self.auth_endpoint,
                                  timeout=(3, 5), headers=self.headers, data={'data': credentials})
         res2.raise_for_status()
+        self.validate()
         self.logger.info("Success!")
+
+    def validate(self):
+        data = self.get_delivery_timeslots_html()
+        if data:
+            tree = html.fromstring(data)
+
+            # If we can find the enter-password field, assume login failed.
+            pw_box = tree.xpath('//*[@id="password"]')
+            if not pw_box:
+                return
+        raise RuntimeError("Fresh Direct authentication failed.")
 
     def get_delivery_timeslots_html(self):
         res = self.session.get(self.slots_endpoint, headers=self.headers, timeout=10)
@@ -147,22 +149,19 @@ def poll_and_alert(client, alerter, poll_interval):
         time.sleep(poll_interval)
 
 
-def run_main(poll_interval, alert_interval):
-    """ Main entry point.
+def run(config):
+    # Number of seconds to wait between refreshes.
+    poll_interval = config.get('poll_interval', 15)
 
-    Args
-        poll_interval (int)
-            Number of seconds to wait between refreshes.
+    # Number of seconds to wait between subsequent alerts.
+    alert_interval = config.get('alert_interval', 60)
 
-        alert_interval (int)
-            Number of seconds to wait between subsequent alerts.
-    """
     start_time = datetime.datetime.now()
 
     client = FreshDirectClient(logger)
-    client.authenticate(USERNAME, PASSWORD)
+    client.authenticate(config['fresh_direct_username'], config['fresh_direct_password'])
 
-    alerter = TextAlerter(alert_interval)
+    alerter = MessageBirdAlerter(alert_interval, config['message_bird_api_key'], config['phone_number_to_text'])
 
     is_running = True
     while is_running:
@@ -186,5 +185,11 @@ def run_main(poll_interval, alert_interval):
             logger.info(message)
 
 
+def main():
+    config_path = sys.argv[1] if len(sys.argv) > 1 else 'config.json'
+    config = json.load(open(config_path, 'r'))
+    run(config)
+
+
 if __name__ == '__main__':
-    run_main(poll_interval=15, alert_interval=60)
+    sys.exit(main())

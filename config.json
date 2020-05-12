@@ -1,0 +1,8 @@
+{
+  "fresh_direct_username": "ilovegroceries@gmail.com",
+  "fresh_direct_password": "correcthorsebatterystaple",
+  "poll_interval": 15,
+  "alert_interval": 60,
+  "message_bird_api_key": "xxxxxxxxxxxxxxxxxxxxxxxxx",
+  "phone_number_to_text": "+12125555555"
+}
